@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diapason — Music Training</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#0f1220">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>🎵 Diapason</h1>
+    <p class="tagline">Train your musical ear and your reading skills</p>
+  </header>
+
+  <main id="app">
+    <!-- Home / module selection -->
+    <section id="home" class="screen active">
+      <h2>Choose a module</h2>
+      <div class="module-grid">
+        <button class="module-card" data-module="chords">
+          <span class="module-icon">🎹</span>
+          <span class="module-title">Chord Types</span>
+          <span class="module-desc">Listen to a chord and identify its type.</span>
+        </button>
+        <button class="module-card" data-module="staff">
+          <span class="module-icon">🎼</span>
+          <span class="module-title">Staff Reading</span>
+          <span class="module-desc">Identify notes shown on the staff.</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Chord module -->
+    <section id="chords" class="screen">
+      <button class="back-btn" data-back>← Back</button>
+      <h2>Chord Types</h2>
+
+      <div class="scoreboard">
+        <span>Correct: <strong id="chord-correct">0</strong></span>
+        <span>Wrong: <strong id="chord-wrong">0</strong></span>
+      </div>
+
+      <p class="instructions">A random chord is played. Identify its <strong>type</strong> (not the key).</p>
+
+      <div class="controls">
+        <button id="chord-play" class="primary">▶ Play chord</button>
+        <button id="chord-new" class="secondary">⟳ New chord</button>
+        <button id="chord-reset" class="secondary">↺ Reset score</button>
+      </div>
+
+      <div id="chord-options" class="options-grid"></div>
+
+      <div id="chord-feedback" class="feedback"></div>
+
+      <div id="chord-name" class="chord-name hidden"></div>
+
+      <div id="chord-piano" class="piano-render hidden"></div>
+    </section>
+
+    <!-- Staff module -->
+    <section id="staff" class="screen">
+      <button class="back-btn" data-back>← Back</button>
+      <h2>Staff Reading</h2>
+
+      <div id="staff-setup" class="setup">
+        <p class="instructions">Which clef do you want to practice?</p>
+        <div class="options-grid">
+          <button class="clef-choice" data-clef="treble">Treble clef (G)</button>
+          <button class="clef-choice" data-clef="bass">Bass clef (F)</button>
+          <button class="clef-choice" data-clef="both">Both</button>
+        </div>
+      </div>
+
+      <div id="staff-game" class="hidden">
+        <div class="scoreboard">
+          <span>Correct: <strong id="staff-correct">0</strong></span>
+          <span>Wrong: <strong id="staff-wrong">0</strong></span>
+        </div>
+
+        <p class="instructions">Which note is shown on the staff? Click a button or press the matching key (C–B) on your keyboard.</p>
+
+        <div id="staff-render" class="staff-render"></div>
+
+        <div class="controls">
+          <button id="staff-play" class="primary">▶ Play note</button>
+          <button id="staff-new" class="secondary">⟳ New note</button>
+          <button id="staff-change-clef" class="secondary">Change clef</button>
+          <button id="staff-reset" class="secondary">↺ Reset score</button>
+        </div>
+
+        <div id="staff-options" class="options-grid notes-grid"></div>
+
+        <div id="staff-feedback" class="feedback"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>Diapason — built with vanilla HTML, CSS &amp; JavaScript.</p>
+  </footer>
+
+  <script src="js/audio.js"></script>
+  <script src="js/theory.js"></script>
+  <script src="js/staff-render.js"></script>
+  <script src="js/piano-render.js"></script>
+  <script src="js/chords.js"></script>
+  <script src="js/staff.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

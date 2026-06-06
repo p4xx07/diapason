@@ -1,0 +1,97 @@
+/* piano-render.js — draws a piano keyboard (SVG) with given notes highlighted */
+(function (global) {
+  "use strict";
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const WHITE_PCS = [0, 2, 4, 5, 7, 9, 11];
+  const WHITE_W = 22;
+  const WHITE_H = 96;
+  const BLACK_W = 13;
+  const BLACK_H = 58;
+
+  const PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+  function pc(midi) { return ((midi % 12) + 12) % 12; }
+  function isWhite(midi) { return WHITE_PCS.indexOf(pc(midi)) >= 0; }
+
+  function el(name, attrs) {
+    const node = document.createElementNS(SVG_NS, name);
+    for (const k in attrs) {
+      if (Object.prototype.hasOwnProperty.call(attrs, k)) {
+        node.setAttribute(k, attrs[k]);
+      }
+    }
+    return node;
+  }
+
+  // highlight: array of MIDI notes to light up. The first entry is treated as
+  // the root and gets a distinct color.
+  function render(highlight) {
+    const set = new Set(highlight);
+    const root = highlight[0];
+
+    const min = Math.min.apply(null, highlight);
+    const max = Math.max.apply(null, highlight);
+    // Expand to whole octaves (C .. B) so the keyboard looks complete.
+    const low = min - pc(min);
+    const high = max + (11 - pc(max));
+
+    // Count white keys for total width.
+    const whites = [];
+    for (let m = low; m <= high; m++) {
+      if (isWhite(m)) whites.push(m);
+    }
+    const totalW = whites.length * WHITE_W;
+
+    const svg = el("svg", {
+      viewBox: "0 0 " + totalW + " " + WHITE_H,
+      role: "img",
+      "aria-label": "piano keyboard with chord notes highlighted",
+    });
+
+    // White keys first.
+    whites.forEach(function (m, i) {
+      const lit = set.has(m);
+      svg.appendChild(el("rect", {
+        x: i * WHITE_W, y: 0, width: WHITE_W, height: WHITE_H, rx: 2,
+        fill: lit ? (m === root ? "#4cd4b0" : "#6c8cff") : "#fbfdff",
+        stroke: "#0f1220", "stroke-width": 1,
+      }));
+      if (lit) {
+        const t = el("text", {
+          x: i * WHITE_W + WHITE_W / 2, y: WHITE_H - 7,
+          "text-anchor": "middle", "font-size": 9,
+          fill: "#04261c", "font-weight": "700",
+        });
+        t.textContent = PITCH_NAMES[pc(m)];
+        svg.appendChild(t);
+      }
+    });
+
+    // Black keys overlaid on top.
+    let whiteCount = 0;
+    for (let m = low; m <= high; m++) {
+      if (isWhite(m)) { whiteCount++; continue; }
+      const x = whiteCount * WHITE_W - BLACK_W / 2;
+      const lit = set.has(m);
+      svg.appendChild(el("rect", {
+        x: x, y: 0, width: BLACK_W, height: BLACK_H, rx: 2,
+        fill: lit ? (m === root ? "#2f9e80" : "#3a5bd0") : "#1a1f36",
+        stroke: "#0f1220", "stroke-width": 1,
+      }));
+      if (lit) {
+        const t = el("text", {
+          x: x + BLACK_W / 2, y: BLACK_H - 6,
+          "text-anchor": "middle", "font-size": 7.5,
+          fill: "#fbfdff", "font-weight": "700",
+        });
+        t.textContent = PITCH_NAMES[pc(m)];
+        svg.appendChild(t);
+      }
+    }
+
+    return svg;
+  }
+
+  global.DiapasonPiano = { render: render };
+})(window);
