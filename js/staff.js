@@ -14,15 +14,18 @@
     return (octave + 1) * 12 + LETTER_SEMITONE[letter];
   }
 
-  // Build the pool of natural notes used for each clef, within a readable
-  // range (a couple of ledger lines at most).
-  function buildPool(clef) {
-    // [letter, octave] ranges chosen per clef.
+  // Build the pool of natural notes for a clef.
+  // wide=true (single-clef modes) reaches ~3-4 ledger lines above and below the
+  // staff. wide=false ("both" mode) stays near each staff so notes don't stray
+  // into the other clef's territory on the grand staff.
+  function buildPool(clef, wide) {
     let ranges;
     if (clef === "treble") {
-      ranges = enumerate("C", 4, "A", 5); // middle C up to A above the staff
+      ranges = wide ? enumerate("D", 3, "G", 6)  // ~4 ledger below to ~4 above
+                    : enumerate("C", 4, "A", 5);
     } else {
-      ranges = enumerate("E", 2, "C", 4); // low E up to middle C
+      ranges = wide ? enumerate("F", 1, "B", 4)  // ~4 ledger below to ~4 above
+                    : enumerate("E", 2, "C", 4);
     }
     return ranges.map(function (n) {
       return { clef: clef, letter: n.letter, octave: n.octave, midi: midiOf(n.letter, n.octave) };
@@ -145,7 +148,7 @@
       ? (T.randomInt(2) === 0 ? "treble" : "bass")
       : state.clef;
 
-    const pool = buildPool(clef);
+    const pool = buildPool(clef, state.clef !== "both");
     state.current = T.pick(pool);
     state.answered = false;
 

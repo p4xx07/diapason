@@ -24,11 +24,21 @@
     return node;
   }
 
-  // highlight: array of MIDI notes to light up. The first entry is treated as
-  // the root and gets a distinct color.
-  function render(highlight) {
+  // highlight: array of MIDI notes to light up. rootMidi (optional) is the key
+  // painted with the distinct "root" color; defaults to the first note. Passing
+  // it explicitly keeps the root highlighted correctly when the chord is voiced
+  // as an inversion (where the root is no longer the lowest note).
+  // nameByPc (optional) maps a pitch class to the correctly-spelled note name
+  // for the current chord (e.g. {10: "Bb"}); lit keys use it instead of the
+  // default sharp names, so accidentals are shown per music theory.
+  function render(highlight, rootMidi, nameByPc) {
     const set = new Set(highlight);
-    const root = highlight[0];
+    const root = (typeof rootMidi === "number") ? rootMidi : highlight[0];
+
+    function label(m) {
+      const p = pc(m);
+      return (nameByPc && nameByPc[p]) ? nameByPc[p] : PITCH_NAMES[p];
+    }
 
     const min = Math.min.apply(null, highlight);
     const max = Math.max.apply(null, highlight);
@@ -63,7 +73,7 @@
           "text-anchor": "middle", "font-size": 9,
           fill: "#04261c", "font-weight": "700",
         });
-        t.textContent = PITCH_NAMES[pc(m)];
+        t.textContent = label(m);
         svg.appendChild(t);
       }
     });
@@ -85,7 +95,7 @@
           "text-anchor": "middle", "font-size": 7.5,
           fill: "#fbfdff", "font-weight": "700",
         });
-        t.textContent = PITCH_NAMES[pc(m)];
+        t.textContent = label(m);
         svg.appendChild(t);
       }
     }

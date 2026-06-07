@@ -7,13 +7,17 @@
 
   // Layout constants (SVG user units).
   const VIEW_W = 360;
-  const VIEW_H = 160;            // single-staff canvas height
+  const VIEW_H = 220;            // single-staff canvas (room for ~4 ledger lines each side)
   const VIEW_H_GRAND = 200;      // grand-staff canvas height
   const STAFF_LEFT = 20;
   const STAFF_RIGHT = 340;
   const LINE_GAP = 12;            // vertical distance between staff lines
   const STEP = LINE_GAP / 2;      // one diatonic step = half a line gap
   const NOTE_X = 230;             // x position of the notehead
+
+  // Single-staff bottom line, placed mid-canvas so notes can extend several
+  // ledger lines both above and below.
+  const SINGLE_BOTTOM = 134;      // top line at y=86
 
   // Bottom-line y positions. For the grand staff the two staves share a single
   // continuous coordinate system, so the same pitch always lands at the same y
@@ -63,18 +67,40 @@
 
   function drawClef(svg, clef, bottomLineY) {
     const topLineY = bottomLineY - 4 * LINE_GAP;
-    const glyph = clef === "bass" ? "𝄢" : "𝄞";
-    const glyphY = clef === "bass" ? topLineY + LINE_GAP * 1.55
-                                   : topLineY + LINE_GAP * 3.4;
-    const glyphSize = clef === "bass" ? LINE_GAP * 3.4 : LINE_GAP * 6.2;
+    if (clef === "bass") { drawBassClef(svg, topLineY); return; }
+
+    // Treble (G) clef: the unicode glyph renders well and wraps the G line.
     const t = el("text", {
-      x: STAFF_LEFT + 6, y: glyphY,
-      "font-size": glyphSize,
+      x: STAFF_LEFT + 6, y: topLineY + LINE_GAP * 3.4,
+      "font-size": LINE_GAP * 6.2,
       fill: "#e8ecff",
       "font-family": "serif",
     });
-    t.textContent = glyph;
+    t.textContent = "𝄞";
     svg.appendChild(t);
+  }
+
+  // Bass (F) clef drawn as SVG so its two dots reliably straddle the F line
+  // (2nd line from the top), independent of any font's glyph metrics.
+  function drawBassClef(svg, topLineY) {
+    const Fy = topLineY + LINE_GAP; // F line
+    const x = STAFF_LEFT + 13;
+    const COLOR = "#e8ecff";
+    // Round head sitting on the F line.
+    svg.appendChild(el("circle", { cx: x, cy: Fy - 1, r: 7.5, fill: COLOR }));
+    // Comma-shaped body: rises from the head to the upper right, then sweeps
+    // down and curls to a point at the lower left — the characteristic F-clef shape.
+    svg.appendChild(el("path", {
+      fill: COLOR,
+      d: "M " + (x + 1) + " " + (Fy - 8.5) +
+         " C " + (x + 11) + " " + (Fy - 13) + " " + (x + 20) + " " + (Fy - 8) + " " + (x + 19.5) + " " + (Fy + 2) +
+         " C " + (x + 19) + " " + (Fy + 12) + " " + (x + 9) + " " + (Fy + 20) + " " + (x - 3) + " " + (Fy + 23) +
+         " C " + (x + 6) + " " + (Fy + 16) + " " + (x + 12) + " " + (Fy + 8) + " " + (x + 11.5) + " " + (Fy + 0.5) +
+         " C " + (x + 11) + " " + (Fy - 4.5) + " " + (x + 7) + " " + (Fy - 7.5) + " " + (x + 1) + " " + (Fy - 8.5) + " Z",
+    }));
+    // Two dots straddling the F line.
+    svg.appendChild(el("circle", { cx: x + 23.5, cy: Fy - LINE_GAP / 2, r: 2.5, fill: COLOR }));
+    svg.appendChild(el("circle", { cx: x + 23.5, cy: Fy + LINE_GAP / 2, r: 2.5, fill: COLOR }));
   }
 
   function drawLedgerLines(svg, y, topLineY, bottomLineY) {
@@ -129,10 +155,10 @@
       "aria-label": "musical staff with one note",
     });
 
-    drawStaffLines(svg, TREBLE_BOTTOM);
-    drawClef(svg, note.clef, TREBLE_BOTTOM);
-    const y = noteY(note.clef, note.letter, note.octave, TREBLE_BOTTOM);
-    drawNote(svg, y, TREBLE_BOTTOM);
+    drawStaffLines(svg, SINGLE_BOTTOM);
+    drawClef(svg, note.clef, SINGLE_BOTTOM);
+    const y = noteY(note.clef, note.letter, note.octave, SINGLE_BOTTOM);
+    drawNote(svg, y, SINGLE_BOTTOM);
 
     return svg;
   }

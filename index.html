@@ -14,6 +14,14 @@
   <header class="app-header">
     <h1>🎵 Diapason</h1>
     <p class="tagline">Train your musical ear and your reading skills</p>
+    <div class="instrument-bar">
+      <label for="instrument">Sound</label>
+      <select id="instrument">
+        <option value="piano">Piano</option>
+        <option value="organ">Organ</option>
+        <option value="strings">Strings</option>
+      </select>
+    </div>
   </header>
 
   <main id="app">
@@ -31,6 +39,11 @@
           <span class="module-title">Staff Reading</span>
           <span class="module-desc">Identify notes shown on the staff.</span>
         </button>
+        <button class="module-card" data-module="explorer">
+          <span class="module-icon">👂</span>
+          <span class="module-title">Chord Explorer</span>
+          <span class="module-desc">Pick a root and a type to hear any chord — train your ear.</span>
+        </button>
       </div>
     </section>
 
@@ -46,6 +59,19 @@
 
       <p class="instructions">A random chord is played. Identify its <strong>type</strong> (not the key).</p>
 
+      <div class="settings">
+        <label class="toggle"><input type="checkbox" id="chord-arpeggio"> Arpeggio (one note at a time)</label>
+        <label class="toggle"><input type="checkbox" id="chord-inversions"> Inversions</label>
+        <details class="types-picker">
+          <summary>Chord types to practice</summary>
+          <div id="chord-type-toggles" class="type-toggles"></div>
+          <div class="type-actions">
+            <button id="chord-types-all" class="secondary small">Select all</button>
+            <button id="chord-types-none" class="secondary small">Clear all</button>
+          </div>
+        </details>
+      </div>
+
       <div class="controls">
         <button id="chord-play" class="primary">▶ Play chord</button>
         <button id="chord-new" class="secondary">⟳ New chord</button>
@@ -59,6 +85,38 @@
       <div id="chord-name" class="chord-name hidden"></div>
 
       <div id="chord-piano" class="piano-render hidden"></div>
+    </section>
+
+    <!-- Chord Explorer module -->
+    <section id="explorer" class="screen">
+      <button class="back-btn" data-back>← Back</button>
+      <h2>Chord Explorer</h2>
+      <p class="instructions">Pick a <strong>root note</strong> (no sound), then pick a <strong>chord type</strong> to hear the chord. Explore freely to train your ear before the recognition game.</p>
+
+      <h3 class="section-label">Root note</h3>
+      <div id="explorer-roots" class="options-grid notes-grid"></div>
+
+      <h3 class="section-label">Chord type</h3>
+      <div id="explorer-types" class="options-grid"></div>
+
+      <div class="explorer-controls">
+        <div class="ctrl-group">
+          <span class="ctrl-label">Octave</span>
+          <button id="exp-oct-down" class="step" aria-label="Lower octave">−</button>
+          <span id="exp-octave" class="ctrl-value">3</span>
+          <button id="exp-oct-up" class="step" aria-label="Raise octave">+</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="exp-arpeggio"> Arpeggio</label>
+        <div class="ctrl-group">
+          <span class="ctrl-label">Inversion</span>
+          <button id="exp-inv-prev" class="step" aria-label="Previous inversion">◀</button>
+          <span id="exp-inversion" class="ctrl-value wide">—</span>
+          <button id="exp-inv-next" class="step" aria-label="Next inversion">▶</button>
+        </div>
+      </div>
+
+      <div id="explorer-name" class="chord-name hidden"></div>
+      <div id="explorer-piano" class="piano-render hidden"></div>
     </section>
 
     <!-- Staff module -->
@@ -109,6 +167,7 @@
   <script src="js/piano-render.js"></script>
   <script src="js/chords.js"></script>
   <script src="js/staff.js"></script>
+  <script src="js/explorer.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

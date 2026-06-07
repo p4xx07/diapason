@@ -9,11 +9,13 @@
 
     if (id === "chords") global.DiapasonChords.onEnter();
     if (id === "staff") global.DiapasonStaffGame.onEnter();
+    if (id === "explorer") global.DiapasonExplorer.onEnter();
   }
 
   function init() {
     global.DiapasonChords.init();
     global.DiapasonStaffGame.init();
+    global.DiapasonExplorer.init();
 
     // Module cards on the home screen.
     Array.prototype.forEach.call(document.querySelectorAll(".module-card"), function (card) {
@@ -28,6 +30,15 @@
         showScreen("home");
       });
     });
+
+    // Global instrument (timbre) selector — applies to every module.
+    const instrument = document.getElementById("instrument");
+    if (instrument) {
+      global.DiapasonAudio.setTimbre(instrument.value);
+      instrument.addEventListener("change", function () {
+        global.DiapasonAudio.setTimbre(instrument.value);
+      });
+    }
   }
 
   if (document.readyState === "loading") {

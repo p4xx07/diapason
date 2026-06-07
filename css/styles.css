@@ -47,6 +47,26 @@ body {
   font-size: clamp(0.85rem, 3vw, 1rem);
 }
 
+.instrument-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.instrument-bar select {
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--panel-2);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
 main {
   flex: 1;
   width: 100%;
@@ -203,6 +223,14 @@ button:active { transform: scale(0.97); }
   font-weight: 600;
 }
 .option:hover { border-color: var(--accent); }
+.option.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+/* The chosen root changes colour (solid teal fill) so it stays clearly marked,
+   distinct from the blue fill used for the selected chord type. */
+#explorer-roots .option.selected {
+  background: var(--accent-2);
+  color: #04261c;
+  border-color: var(--accent-2);
+}
 .option.correct { background: var(--correct); color: #04261c; border-color: var(--correct); }
 .option.wrong { background: var(--wrong); color: #2a0a10; border-color: var(--wrong); }
 .option:disabled { cursor: default; opacity: 0.9; }
@@ -238,6 +266,90 @@ button:active { transform: scale(0.97); }
   max-width: 360px;
   height: auto;
 }
+
+/* Section label (Chord Explorer) */
+.section-label {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1rem 0 0.25rem;
+}
+
+/* Chord Explorer controls bar (octave, arpeggio, inversion) */
+.explorer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-2);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+.ctrl-group { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-label { color: var(--muted); font-size: 0.9rem; }
+.ctrl-value { text-align: center; font-weight: 700; min-width: 1.5rem; }
+.ctrl-value.wide { min-width: 8.5rem; }
+
+button.step {
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 0.4rem 0.6rem;
+  min-width: 2.4rem;
+  font-size: 1rem;
+}
+button.step:hover { background: #2c345c; }
+button.step:disabled { opacity: 0.4; cursor: default; }
+
+/* Chord settings panel */
+.settings {
+  background: var(--panel);
+  border: 1px solid var(--panel-2);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.toggle input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+
+.types-picker summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.95rem;
+  padding: 0.25rem 0;
+}
+.types-picker summary:hover { color: var(--text); }
+
+.type-toggles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* phones: 2 columns */
+  gap: 0.4rem 1rem;
+  margin: 0.5rem 0;
+}
+@media (min-width: 600px) {
+  .type-toggles { grid-template-columns: repeat(3, minmax(0, 1fr)); } /* wider: 3 columns */
+}
+.type-toggles .toggle {
+  font-size: 0.88rem;
+  align-items: flex-start;
+}
+
+.type-actions { display: flex; gap: 0.5rem; }
+button.small { padding: 0.4rem 0.7rem; font-size: 0.85rem; }
 
 /* Full chord name shown with the keyboard */
 .chord-name {

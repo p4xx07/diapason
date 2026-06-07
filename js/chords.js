@@ -9,11 +9,17 @@
   const ROOT_MIN = 52; // E3
   const ROOT_MAX = 64; // E4
 
+  const ORDINALS = ["root position", "1st inversion", "2nd inversion",
+    "3rd inversion", "4th inversion", "5th inversion"];
+
   const state = {
-    current: null,   // { type, rootMidi, notes }
+    current: null,   // { type, rootMidi, rootVoiced, notes, inv }
     answered: false,
     correct: 0,
     wrong: 0,
+    enabled: {},     // type id -> bool (which types are in the practice set)
+    arpeggio: false, // play one note at a time
+    inversions: false, // voice chords as random inversions
   };
 
   let dom = {};
@@ -23,6 +29,11 @@
       play: document.getElementById("chord-play"),
       next: document.getElementById("chord-new"),
       reset: document.getElementById("chord-reset"),
+      arpeggio: document.getElementById("chord-arpeggio"),
+      inversions: document.getElementById("chord-inversions"),
+      typeToggles: document.getElementById("chord-type-toggles"),
+      typesAll: document.getElementById("chord-types-all"),
+      typesNone: document.getElementById("chord-types-none"),
       options: document.getElementById("chord-options"),
       feedback: document.getElementById("chord-feedback"),
       name: document.getElementById("chord-name"),
@@ -31,19 +42,76 @@
       wrong: document.getElementById("chord-wrong"),
     };
 
-    dom.play.addEventListener("click", function () {
-      if (state.current) Audio.playChord(state.current.notes);
-    });
+    // Every chord type starts enabled.
+    T.CHORD_TYPES.forEach(function (type) { state.enabled[type.id] = true; });
+
+    dom.play.addEventListener("click", playCurrent);
     dom.next.addEventListener("click", function () { newRound(true); });
     dom.reset.addEventListener("click", resetScore);
 
+    dom.arpeggio.addEventListener("change", function () {
+      state.arpeggio = dom.arpeggio.checked;
+    });
+    dom.inversions.addEventListener("change", function () {
+      state.inversions = dom.inversions.checked;
+    });
+
+    dom.typesAll.addEventListener("click", function () { setAllTypes(true); });
+    dom.typesNone.addEventListener("click", function () { setAllTypes(false); });
+
+    buildTypeToggles();
     buildOptionButtons();
   }
 
-  // Build one button per chord type once; reuse across rounds.
+  // ----- playback -----
+
+  function playCurrent() {
+    if (!state.current) return;
+    if (state.arpeggio) Audio.playArpeggio(state.current.notes);
+    else Audio.playChord(state.current.notes);
+  }
+
+  // ----- chord-type practice set -----
+
+  function enabledTypes() {
+    return T.CHORD_TYPES.filter(function (t) { return state.enabled[t.id]; });
+  }
+
+  function buildTypeToggles() {
+    dom.typeToggles.innerHTML = "";
+    T.CHORD_TYPES.forEach(function (type) {
+      const label = document.createElement("label");
+      label.className = "toggle";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!state.enabled[type.id];
+      cb.dataset.id = type.id;
+      cb.addEventListener("change", function () {
+        state.enabled[type.id] = cb.checked;
+        onTypesChanged();
+      });
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(" " + type.label));
+      dom.typeToggles.appendChild(label);
+    });
+  }
+
+  function setAllTypes(value) {
+    T.CHORD_TYPES.forEach(function (type) { state.enabled[type.id] = value; });
+    buildTypeToggles();
+    onTypesChanged();
+  }
+
+  // Practice set changed: rebuild the answer buttons and start a fresh round.
+  function onTypesChanged() {
+    buildOptionButtons();
+    newRound(false);
+  }
+
+  // Build one answer button per enabled chord type.
   function buildOptionButtons() {
     dom.options.innerHTML = "";
-    T.CHORD_TYPES.forEach(function (type) {
+    enabledTypes().forEach(function (type) {
       const btn = document.createElement("button");
       btn.className = "option";
       btn.textContent = type.label;
@@ -53,19 +121,37 @@
     });
   }
 
+  // ----- rounds -----
+
   // play = true sounds the new chord right away (used by the "New chord"
   // button). Entering the module leaves it silent until the user presses Play.
   function newRound(play) {
-    const type = T.pick(T.CHORD_TYPES);
+    hideAnswer();
+
+    const types = enabledTypes();
+    if (!types.length) {
+      state.current = null;
+      dom.feedback.textContent = "Select at least one chord type to practice.";
+      dom.feedback.className = "feedback";
+      return;
+    }
+
+    const type = T.pick(types);
     const rootMidi = ROOT_MIN + T.randomInt(ROOT_MAX - ROOT_MIN + 1);
-    state.current = {
-      type: type,
-      rootMidi: rootMidi,
-      notes: T.buildChord(rootMidi, type.intervals),
-    };
+    let notes = T.buildChord(rootMidi, type.intervals);
+    let rootVoiced = rootMidi;
+    let inv = 0;
+
+    if (state.inversions && notes.length > 1) {
+      inv = T.randomInt(notes.length); // 0 = root position
+      notes = T.invert(notes, inv);
+      // The root was the lowest note; raised by an octave for any inversion > 0.
+      if (inv > 0) rootVoiced = rootMidi + 12;
+    }
+
+    state.current = { type: type, rootMidi: rootMidi, rootVoiced: rootVoiced, notes: notes, inv: inv };
     state.answered = false;
 
-    // Reset button styles.
     Array.prototype.forEach.call(dom.options.children, function (btn) {
       btn.classList.remove("correct", "wrong");
       btn.disabled = false;
@@ -74,13 +160,14 @@
     dom.feedback.textContent = "";
     dom.feedback.className = "feedback";
 
-    // Hide the chord name and keyboard; wait for the user to press Play (no autoplay).
+    if (play) playCurrent();
+  }
+
+  function hideAnswer() {
     dom.name.innerHTML = "";
     dom.name.classList.add("hidden");
     dom.piano.innerHTML = "";
     dom.piano.classList.add("hidden");
-
-    if (play) Audio.playChord(state.current.notes);
   }
 
   function guess(type) {
@@ -108,15 +195,18 @@
     dom.correct.textContent = state.correct;
     dom.wrong.textContent = state.wrong;
 
-    // Show the full chord name (e.g. "E9") together with the keyboard,
-    // and the chord notes highlighted (root in green).
+    // Show the full chord name (e.g. "E9") with the inversion (if any) and the
+    // keyboard, with the chord notes highlighted (root in green).
     const fullName = T.chordName(state.current.rootMidi, state.current.type);
-    dom.name.innerHTML = fullName +
-      '<span class="ctype">' + state.current.type.label + "</span>";
+    let sub = state.current.type.label;
+    if (state.current.inv > 0) sub += " · " + ORDINALS[state.current.inv];
+    dom.name.innerHTML = fullName + '<span class="ctype">' + sub + "</span>";
     dom.name.classList.remove("hidden");
 
     dom.piano.innerHTML = "";
-    dom.piano.appendChild(global.DiapasonPiano.render(state.current.notes));
+    const spelled = T.spellChord(state.current.rootMidi, state.current.type);
+    dom.piano.appendChild(
+      global.DiapasonPiano.render(state.current.notes, state.current.rootVoiced, spelled.byPc));
     dom.piano.classList.remove("hidden");
   }
 
