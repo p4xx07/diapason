@@ -2,9 +2,11 @@
 (function (global) {
   "use strict";
   const Core = global.DiapasonGameCore;
+  const Progress = global.DiapasonProgressCore;
   const T = global.DiapasonTheory;
   const Audio = global.DiapasonAudio;
   const $ = id => document.getElementById(id);
+  const PROGRESS_KEY = 'diapason-progress-v1';
   const CHORD_CUES = {
     maj: 'Major 3rd · perfect 5th', min: 'Minor 3rd · perfect 5th',
     '7': 'Major triad · minor 7th', maj7: 'Major triad · major 7th',
@@ -15,12 +17,40 @@
     aug: 'Major 3rd · augmented 5th',
   };
   const state = { tab: "solo", soloDeck: null, soloConfig: null, soloIndex: 0, soloTotal: 0, soloCorrect: 0, soloStreak: 0, soloBestStreak: 0,
-    soloAttempts: [], isReview: false,
+    soloAttempts: [], isReview: false, reviewSources: [],
     soloStartedAt: 0, soloDeadline: 0, soloAnswered: false, room: null, roomToken: null,
     shownQuestionId: null, shownPhase: null, serverOffset: 0, pollTimer: null, pollBusy: false,
     soundTimer: null, nextTimer: null, heartbeat: null, effectTimer: null, playTimer: null,
     compareNotes: null, compareTimbre: null, compareArpeggio: false,
     answerPiano: null, comparePiano: null };
+
+  function readProgress() {
+    try { return Progress.normalize(JSON.parse(localStorage.getItem(PROGRESS_KEY) || 'null')); }
+    catch { return Progress.empty(); }
+  }
+  function updateHomeProgress(progress = readProgress()) {
+    const hasMisses = progress.pending.length > 0;
+    const practice = $('home-continue');
+    const play = $('home-play-now');
+    practice.classList.toggle('hidden', !hasMisses);
+    practice.classList.toggle('primary', hasMisses);
+    practice.classList.toggle('text-action', !hasMisses);
+    practice.textContent = `Practice misses (${progress.pending.length})`;
+    play.classList.toggle('primary', !hasMisses);
+    play.classList.toggle('text-action', hasMisses);
+    play.textContent = hasMisses ? 'New game' : 'Play now →';
+    if (hasMisses) play.parentElement.prepend(practice);
+    else play.after(practice);
+    $('home-progress').classList.toggle('hidden', !progress.setsPlayed);
+    const sets = `${progress.setsPlayed} ${progress.setsPlayed === 1 ? 'set' : 'sets'}`;
+    $('home-progress').textContent = (progress.bestScore > 0
+      ? `Best set ${progress.bestScore.toLocaleString()} · ${sets}` : `${sets} played`) +
+      (!progress.pending.length && progress.setsPlayed ? ' · practice clear' : '');
+  }
+  function saveProgress(progress) {
+    try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch {}
+    updateHomeProgress(progress);
+  }
 
   function motionAllowed() {
     return $('challenge-motion').checked && !global.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -137,8 +167,9 @@
     stage.classList.toggle('staff-question', question.kind === 'staff');
     $("challenge-progress").textContent = String(count).padStart(2, "0") + " / " + total;
     const verb = question.kind === 'chord' ? 'LISTEN' : 'READ';
+    const stages = ['FOUNDATIONS', 'EXPLORE', 'STRETCH'];
     const level = state.room || !state.soloConfig?.progressive || state.isReview ? '' :
-      ` · ${count <= 4 ? 'FOUNDATIONS' : count <= 8 ? 'EXPLORE' : 'STRETCH'}`;
+      ` · ${stages[question.level ?? 0]}`;
     $("challenge-question-label").textContent = state.isReview ? `${verb} · RETRY` : verb + level;
     $("challenge-prompt").textContent = question.kind === "chord" ? "Which chord?" : "Name this note.";
     $("challenge-stimulus").replaceChildren();
@@ -296,16 +327,17 @@
     if (question.kind === "chord") playQuestion(question);
     updateClock();
   }
-  function beginSolo(config) {
+  function beginSolo(config, deck = null, review = false, reviewSources = []) {
     error("");
     try {
       Audio.getContext(); // Start audio from this user gesture.
       state.room = null;
       state.soloConfig = config;
-      state.soloDeck = Core.makeDeck(config);
+      state.soloDeck = deck || Core.makeDeck(config);
       state.soloIndex = state.soloTotal = state.soloCorrect = state.soloStreak = state.soloBestStreak = 0;
       state.soloAttempts = [];
-      state.isReview = false;
+      state.isReview = review;
+      state.reviewSources = reviewSources;
       openSolo();
     } catch (caught) { error(caught.message); }
   }
@@ -313,10 +345,24 @@
     try { beginSolo(settings()); }
     catch (caught) { error(caught.message); }
   }
+  function quickConfig() {
+    return Core.validSettings({ mode: 'mixed', rounds: 12, seconds: 25,
+      inversions: true, arpeggio: true, progressive: true, timbre: $('instrument').value });
+  }
   async function quickSolo() {
     if (state.room) await leave();
-    beginSolo(Core.validSettings({ mode: 'mixed', rounds: 12, seconds: 25,
-      inversions: true, arpeggio: true, progressive: true, timbre: $('instrument').value }));
+    beginSolo(quickConfig());
+  }
+  async function continuePractice() {
+    if (state.room) await leave();
+    const progress = readProgress();
+    if (!progress.pending.length) return;
+    try {
+      const config = quickConfig();
+      const sources = progress.pending.slice(0, 12);
+      const deck = Core.makeTransferDeck(sources, config, { exclude: [] });
+      beginSolo(config, deck, true, sources);
+    } catch (caught) { error(caught.message); }
   }
   function finishSolo() {
     show("finish");
@@ -340,19 +386,46 @@
     streakTile.append(caption, value); recap.appendChild(streakTile);
     recap.classList.remove('hidden');
     const misses = state.soloAttempts.filter(item => !item.result.correct);
-    $('challenge-review').classList.toggle('hidden', !misses.length);
-    $('challenge-review').textContent = `Try new examples (${misses.length})`;
+    let reviewCount = misses.length;
+    const note = $('challenge-finish-note');
+    note.classList.toggle('hidden', !state.soloConfig?.progressive ||
+      (!state.isReview && state.soloTotal === 0 && readProgress().bestScore === 0));
+    if (state.soloConfig?.progressive) {
+      const outcome = Progress.record(readProgress(), state.soloAttempts, state.soloTotal,
+        { review: state.isReview, reviewed: state.reviewSources });
+      saveProgress(outcome.progress);
+      reviewCount = outcome.progress.pending.length;
+      note.textContent = state.isReview
+        ? (outcome.progress.pending.length ? `${outcome.cleared} cleared · ${outcome.progress.pending.length} to revisit` : 'All clear for now.')
+        : (outcome.isNewBest ? 'New personal best' : `Personal best · ${outcome.progress.bestScore.toLocaleString()} points`);
+    }
+    $('challenge-review').classList.toggle('hidden', !reviewCount);
+    $('challenge-review').textContent = `Practice misses (${reviewCount})`;
     $("challenge-final-standings").replaceChildren();
     $("challenge-finish-action").textContent = "Play again →";
   }
   function reviewMisses() {
-    const misses = state.soloAttempts.filter(item => !item.result.correct).map(item => item.question);
+    const misses = state.soloConfig?.progressive ? readProgress().pending.slice(0, 12) :
+      state.soloAttempts.filter(item => !item.result.correct).map(item => item.question);
     if (!misses.length) return;
-    state.soloDeck = Core.makeTransferDeck(misses, state.soloConfig, { exclude: state.soloDeck });
-    state.soloIndex = state.soloTotal = state.soloCorrect = state.soloStreak = state.soloBestStreak = 0;
-    state.soloAttempts = [];
-    state.isReview = true;
-    openSolo();
+    let deck;
+    try { deck = Core.makeTransferDeck(misses, state.soloConfig, { exclude: state.soloDeck }); }
+    catch { deck = Core.makeTransferDeck(misses, state.soloConfig, { exclude: [] }); }
+    beginSolo(state.soloConfig, deck, true, misses);
+  }
+  function adaptQuickDeck() {
+    if (!state.soloConfig?.progressive || state.isReview || ![3, 7].includes(state.soloIndex)) return;
+    const start = state.soloIndex + 1;
+    const recentCorrect = state.soloAttempts.slice(-4).filter(item => item.result.correct).length;
+    const currentLevel = state.soloDeck[state.soloIndex].level ?? 0;
+    const nextLevel = recentCorrect >= 3 ? Math.min(2, currentLevel + 1) : currentLevel;
+    const kinds = state.soloDeck.slice(start, start + 4).map(question => question.kind);
+    try {
+      const segment = Core.makeDeck({ ...state.soloConfig, rounds: 4 }, Math.random,
+        { level: nextLevel, kinds, exclude: state.soloDeck.slice(0, start) });
+      segment.forEach((question, index) => { question.id = start + index + 1; });
+      state.soloDeck.splice(start, 4, ...segment);
+    } catch { /* The original varied deck remains playable if filters are too narrow. */ }
   }
   async function answer(choice) {
     const question = currentQuestion();
@@ -377,15 +450,17 @@
     state.soloAttempts.push({ question, result });
     if (result.correct) { state.soloCorrect++; state.soloStreak++; state.soloBestStreak = Math.max(state.soloBestStreak, state.soloStreak); }
     else state.soloStreak = 0;
+    adaptQuickDeck();
     $("challenge-score").textContent = state.soloTotal;
     $('challenge-streak').textContent = state.soloStreak;
     revealQuestion(question, result);
     $("challenge-next").classList.remove("hidden");
     $('challenge-advance-hint').classList.remove('hidden');
     const waitForLearner = $('challenge-pause-reveal').checked || !result.correct;
-    $('challenge-advance-hint').textContent = waitForLearner ? 'Continue when ready.' : 'Next round in 8 seconds.';
+    $('challenge-advance-hint').textContent = waitForLearner ? 'Continue when ready.' : 'Next round in 5 seconds.';
     $('challenge-hold').classList.toggle('hidden', waitForLearner);
-    if (!waitForLearner) state.nextTimer = setTimeout(nextSolo, 8000);
+    if (!waitForLearner) state.nextTimer = setTimeout(nextSolo, 5000);
+    $('challenge-next').focus({ preventScroll: true });
     updateClock();
   }
 
@@ -469,6 +544,7 @@
       } else if (state.shownPhase !== 'reveal') {
         state.shownPhase = 'reveal';
         revealQuestion(question, view.self.result);
+        $('challenge-result-replay').focus({ preventScroll: true });
         $('challenge-advance-hint').textContent = 'Next round soon.';
         $('challenge-advance-hint').classList.remove('hidden');
       }
@@ -513,7 +589,11 @@
   function onKeyDown(event) {
     if (!$('challenge').classList.contains('active') || $('challenge-play').classList.contains('hidden')) return;
     if (event.metaKey || event.ctrlKey || event.altKey || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
-    if (event.key === ' ') { event.preventDefault(); playQuestion(currentQuestion()); }
+    if (event.key === ' ') {
+      event.preventDefault();
+      playQuestion(currentQuestion());
+      if (!$('challenge-result').classList.contains('hidden')) showResultPiano('answer');
+    }
     else if (/^[1-4]$/.test(event.key)) {
       const button = $('challenge-options').children[Number(event.key) - 1];
       if (button && !button.disabled) { event.preventDefault(); button.click(); }
@@ -568,10 +648,11 @@
     $('challenge-next').addEventListener('click', nextSolo);
     $('challenge-finish-action').addEventListener('click', () => {
       if (state.room) { if (state.room.self.isHost) startRoom(); else leave(); }
-      else startSolo();
+      else beginSolo(state.soloConfig);
     });
     $('challenge-review').addEventListener('click', reviewMisses);
     document.addEventListener('keydown', onKeyDown);
+    updateHomeProgress();
     state.heartbeat = setInterval(updateClock, 100);
     const invite = new URLSearchParams(location.search).get('room');
     if (invite) { setTab('room'); $('challenge-join-code').value = invite.toUpperCase(); }
@@ -588,5 +669,5 @@
     if (state.room) { if (state.room.phase) acceptRoom(state.room); else pollSoon(0); }
     else if (!state.soloDeck || state.soloIndex >= state.soloDeck.length) show('setup');
   }
-  global.DiapasonChallenge = { init, onEnter, quickSolo, setTab };
+  global.DiapasonChallenge = { init, onEnter, quickSolo, continuePractice, setTab };
 })(window);

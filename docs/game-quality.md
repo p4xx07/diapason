@@ -23,7 +23,13 @@ These are lab checks. Real completion, replay, retention, and learning gains nee
 | 2 | UX 6.75, visual 7.58, learning 7.00 | 7.11 | Abrupt opening difficulty; staff vanishes during explanation; identical miss review |
 | 3 | UX 7.25, visual 8.03, learning 7.53 | 7.60 | Four advanced qualities at the opening; repeated sounds; notes too far beyond staff |
 | 4 | UX 7.50, visual 8.38, learning 7.75 | 7.88 | A/B playback differed in articulation; retries could repeat earlier sounds; chosen notes not shown |
+| 6 | UX 7.63, visual 8.48, learning 7.95 | 8.02 | Zero-point first set falsely called a best; saved misses overwritten by later sets; practice wording inconsistent |
+| 7 | UX 7.80, visual 8.38, learning 8.08 | 8.09 | Saved practice hidden behind the new-game action; Foundations retries jumped to four advanced choices |
 
 Pass 5 has only a partial visual score (8.43). The other two judges reached a Codex usage limit before scoring, so there is no comparable overall mean. The partial review found that the keyboard switched to the chosen chord while the title still named the answer; this was corrected and checked in a headless browser. Release verification below remains independent of the judge score.
+
+Pass 6 measured the first version of local progress. The identified issues were corrected afterward: the home and finish actions now both say **Practice misses**, a zero-point set is not praised as a new best, and unrelated sets preserve the bounded miss queue. An isolated headless run verified miss → new set → practice → clear. Correct answers now advance after five seconds; wrong answers still wait for the player.
+
+Pass 7 measured the persistent practice loop on mobile and desktop. The two main issues were corrected afterward: saved practice becomes the primary home action when the queue is nonempty, and a retry keeps the missed question's difficulty level. The independent judges still found limited immediate musical guidance after a miss and a fairly static game screen. These remain the next design targets; the 9.5 target has not been reached.
 
 Each pass uses an isolated headless browser. The user's active browser is never used for testing. The reusable review procedure is in the local `game-ux-feedback` skill.

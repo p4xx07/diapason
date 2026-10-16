@@ -50,10 +50,24 @@ test('quick play opens on familiar chord types and notes close to the staff cent
         assert.equal(question.inversion, 0);
         assert.equal(question.arpeggio, false);
       } else {
-        const [low, high] = question.note.clef === 'treble' ? [67, 74] : [47, 53];
+        const [low, high] = question.note.clef === 'treble' ? [65, 76] : [45, 55];
         assert.ok(question.note.midi >= low && question.note.midi <= high);
       }
     }
+  }
+});
+
+test('adaptive segments retain the kind order and avoid sounds from earlier rounds', () => {
+  for (let run = 0; run < 30; run++) {
+    const settings = { mode: 'mixed', rounds: 12, progressive: true, inversions: true };
+    const first = Core.makeDeck(settings).slice(0, 4);
+    const kinds = first.map(question => question.kind);
+    const next = Core.makeDeck({ ...settings, rounds: 4 }, Math.random,
+      { level: 0, kinds, exclude: first });
+    assert.deepEqual(next.map(question => question.kind), kinds);
+    assert.ok(next.every(question => question.level === 0 && question.choices.length === 2));
+    const sound = question => question.kind === 'chord' ? `chord:${question.notes.join()}` : `staff:${question.note.midi}`;
+    assert.equal(new Set([...first, ...next].map(sound)).size, 8);
   }
 });
 
@@ -88,6 +102,20 @@ test('miss review generates related but new examples', () => {
       assert.equal(question.note.clef, missed[index].note.clef);
       assert.notEqual(question.note.midi, missed[index].note.midi);
     }
+  });
+});
+
+test('a foundations retry keeps its two-choice difficulty', () => {
+  const config = Core.validSettings({ mode: 'mixed', rounds: 12, seconds: 25,
+    progressive: true, inversions: true, arpeggio: true });
+  const source = Core.makeDeck(config).slice(0, 4);
+  const retry = Core.makeTransferDeck(source, config, { exclude: [] });
+  assert.equal(retry.length, 4);
+  retry.forEach((question, index) => {
+    assert.equal(question.level, 0);
+    assert.equal(question.choices.length, 2);
+    assert.equal(question.kind, source[index].kind);
+    if (question.kind === 'chord') assert.ok(question.choices.every(id => ['maj', 'min'].includes(id)));
   });
 });
 

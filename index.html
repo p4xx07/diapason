@@ -36,7 +36,7 @@
       </div>
       <div class="module-grid">
         <div class="module-card featured">
-          <div class="feature-copy"><span class="module-kicker">THE LISTENING GAME</span><span class="module-title">Ready when you are.</span><span class="module-desc">12 rounds · chords + notes</span><div class="home-actions"><button id="home-play-now" class="primary" type="button">Play now <span aria-hidden="true">→</span></button><button id="home-play-friends" class="text-action" type="button">With friends</button><button id="home-game-settings" class="text-action" type="button">Practice settings</button></div></div>
+          <div class="feature-copy"><span class="module-kicker">THE LISTENING GAME</span><span class="module-title">Ready when you are.</span><span class="module-desc">12 rounds · chords + notes</span><div class="home-actions"><button id="home-play-now" class="primary" type="button">Play now <span aria-hidden="true">→</span></button><button id="home-continue" class="text-action hidden" type="button">Practice misses</button><button id="home-play-friends" class="text-action" type="button">With friends</button><button id="home-game-settings" class="text-action" type="button">Practice settings</button></div><span id="home-progress" class="home-progress hidden"></span></div>
         </div>
         <button class="module-card" data-module="chords">
           <span class="module-kicker">PRACTICE / 01</span>
@@ -110,7 +110,7 @@
         <div id="challenge-result" class="result-card hidden"><span id="challenge-result-label" class="eyebrow">THE ANSWER</span><div id="challenge-feedback" class="challenge-feedback" aria-live="polite"></div><div id="challenge-reveal" class="hidden"><div id="challenge-reveal-name" class="chord-name"></div><div id="challenge-reveal-staff" class="staff-render hidden"></div><p id="challenge-learning" class="learning-cue"></p><span id="challenge-piano-caption" class="piano-caption hidden" aria-live="polite"></span><div id="challenge-reveal-piano" class="piano-render"></div></div><div class="result-actions"><button id="challenge-compare" class="secondary hidden" type="button">▶ Hear your choice</button><button id="challenge-result-replay" class="secondary" type="button">▶ Hear it again</button><button id="challenge-next" class="primary hidden" type="button">Next question →</button><button id="challenge-hold" class="text-action hidden" type="button">Pause here</button></div><p id="challenge-advance-hint" class="advance-hint hidden"></p></div>
         <div id="challenge-standings" class="room-players hidden"></div>
       </div>
-      <div id="challenge-finish" class="challenge-panel hidden"><span class="eyebrow">SESSION COMPLETE</span><h2 id="challenge-finish-title">Nice work.</h2><p id="challenge-finish-summary"></p><div id="challenge-recap" class="recap-grid hidden"></div><div id="challenge-final-standings" class="room-players"></div><div class="finish-actions"><button id="challenge-finish-action" class="primary">Play again →</button><button id="challenge-review" class="secondary hidden">Review misses</button></div></div>
+      <div id="challenge-finish" class="challenge-panel hidden"><span class="eyebrow">SESSION COMPLETE</span><h2 id="challenge-finish-title">Nice work.</h2><p id="challenge-finish-summary"></p><p id="challenge-finish-note" class="finish-note hidden"></p><div id="challenge-recap" class="recap-grid hidden"></div><div id="challenge-final-standings" class="room-players"></div><div class="finish-actions"><button id="challenge-finish-action" class="primary">Play again →</button><button id="challenge-review" class="secondary hidden">Review misses</button></div></div>
     </section>
 
     <!-- Chord module -->
@@ -230,6 +230,7 @@
   <script src="js/audio.js"></script>
   <script src="js/theory.js"></script>
   <script src="js/game-core.js"></script>
+  <script src="js/progress-core.js"></script>
   <script src="js/staff-render.js"></script>
   <script src="js/piano-render.js"></script>
   <script src="js/chords.js"></script>

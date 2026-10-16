@@ -29,6 +29,10 @@
       showScreen('challenge');
       global.DiapasonChallenge.quickSolo();
     });
+    document.getElementById('home-continue').addEventListener('click', function () {
+      showScreen('challenge');
+      global.DiapasonChallenge.continuePractice();
+    });
     document.getElementById('home-play-friends').addEventListener('click', function () {
       showScreen('challenge');
       global.DiapasonChallenge.setTab('room');

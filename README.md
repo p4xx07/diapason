@@ -1,8 +1,8 @@
 # Diapason
 
-A small music practice game. Play a 12-round set of chord listening and staff reading, choose a focused practice set, or create a room and compete with friends. The first rounds of **Play now** use familiar chords and notes near the middle of the staff; later rounds add inversions, wider ranges, and more chord types.
+A small music practice game. Play a 12-round set of chord listening and staff reading, choose a focused practice set, or create a room and compete with friends. **Play now** starts with familiar chords and notes near the middle of the staff, then widens the challenge as answers improve.
 
-The interface starts in dark mode and supports keyboard answers (`1`–`4`), `Space` to replay, a light mode switch, reduced motion, and optional vibration. Solo results explain the answer and let you retry misses with related new examples. Wrong answers wait until you continue.
+The interface starts in dark mode and supports keyboard answers (`1`–`4`), `Space` to replay, a light mode switch, reduced motion, and optional vibration. Solo results explain the answer and let you retry misses with related new examples. Correct answers move on after five seconds; wrong answers wait until you continue. Quick-play best scores and up to 30 missed sounds are saved locally. **Practice misses** reviews up to 12 at a time and works after a reload; no account is required.
 
 ## Run locally
 
@@ -18,7 +18,7 @@ Open `http://localhost:4173`. `npm run build` copies the browser files into `dis
 
 ## Portainer / Docker Compose
 
-Create a Portainer stack from [`compose.yaml`](compose.yaml). It pulls the published image and serves Diapason on port `4173` by default. Set `DIAPASON_PORT` in the stack environment to use a different host port. Set `DIAPASON_TAG` to pin a release tag such as `v1.0.0` instead of `latest`.
+Create a Portainer stack from [`compose.yaml`](compose.yaml). It pulls the published image and serves Diapason on port `4173` by default. Set `DIAPASON_PORT` in the stack environment to use a different host port. Set `DIAPASON_TAG` to pin a release tag such as `v1.1.0` instead of `latest`.
 
 To build the image from this checkout:
 
@@ -41,6 +41,7 @@ Chord answers are graded from the exact sounding MIDI notes and voicing. If two 
 ## Project files
 
 - `js/game-core.js`: shared deck generation, equivalence, and scoring for solo and rooms.
+- `js/progress-core.js`: local practice queue and comparable quick-play records.
 - `js/challenge.js`: browser game and room flow.
 - `rooms.mjs`, `api-handler.mjs`, `server.mjs`: room state, HTTP API, and local server.
 - `api/room.mjs`, `redis-rest.mjs`: Vercel API and Redis REST store.

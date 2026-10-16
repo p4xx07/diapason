@@ -73,8 +73,8 @@
       timbre: settings.randomTimbre ? pick(TIMBRES, random) : settings.timbre };
   }
   function staffPool(clef, level = 2) {
-    const ranges = clef === 'treble' ? [[67, 74], [64, 77], [60, 81]] :
-      [[47, 53], [43, 57], [40, 60]];
+    const ranges = clef === 'treble' ? [[65, 76], [64, 77], [60, 81]] :
+      [[45, 55], [43, 57], [40, 60]];
     const [low, high] = ranges[level];
     const notes = [];
     for (let midi = low; midi <= high; midi++) {
@@ -93,41 +93,51 @@
     return a.kind === b.kind && (a.kind === 'chord' ? a.notes.join() === b.notes.join() :
       a.note.midi === b.note.midi);
   }
-  function makeDeck(rawSettings, random = Math.random) {
+  function settingsAtLevel(settings, level) {
+    const next = { ...settings, progressiveLevel: level };
+    if (level === 0) {
+      next.chordTypes = settings.chordTypes.filter(id => ['maj', 'min'].includes(id));
+      if (next.chordTypes.length < 2) next.chordTypes = settings.chordTypes;
+      next.inversions = false;
+      next.arpeggio = false;
+    } else if (level === 1) {
+      next.chordTypes = settings.chordTypes.filter(id =>
+        ['maj', 'min', 'dim', 'aug', '7', 'maj7', 'min7', 'sus2', 'sus4'].includes(id));
+      if (next.chordTypes.length < 4) next.chordTypes = settings.chordTypes;
+    }
+    return next;
+  }
+  function makeDeck(rawSettings, random = Math.random, options = {}) {
     const settings = validSettings(rawSettings);
-    const kinds = Array.from({ length: settings.rounds }, (_, i) =>
+    const kinds = Array.isArray(options.kinds) && options.kinds.length === settings.rounds &&
+      options.kinds.every(kind => ['chord', 'staff'].includes(kind)) ? options.kinds.slice() :
+      Array.from({ length: settings.rounds }, (_, i) =>
       settings.mode === "mixed" ? (i % 2 === 0 ? "chord" : "staff") :
         (settings.mode === "chords" ? "chord" : "staff"));
-    if (settings.mode === "mixed" && random() < 0.5) kinds.reverse();
+    if (!options.kinds && settings.mode === "mixed" && random() < 0.5) kinds.reverse();
     const deck = [];
     for (const kind of kinds) {
-      const roundSettings = { ...settings };
+      let level;
       if (settings.progressive) {
-        const level = deck.length < 4 ? 0 : deck.length < 8 ? 1 : 2;
-        roundSettings.progressiveLevel = level;
-        if (level === 0) {
-          roundSettings.chordTypes = settings.chordTypes.filter(id => ['maj', 'min'].includes(id));
-          if (roundSettings.chordTypes.length < 2) roundSettings.chordTypes = settings.chordTypes;
-          roundSettings.inversions = false;
-          roundSettings.arpeggio = false;
-        } else if (level === 1) {
-          roundSettings.chordTypes = settings.chordTypes.filter(id =>
-            ['maj', 'min', 'dim', 'aug', '7', 'maj7', 'min7', 'sus2', 'sus4'].includes(id));
-          if (roundSettings.chordTypes.length < 4) roundSettings.chordTypes = settings.chordTypes;
-        }
+        level = [0, 1, 2].includes(options.level) ? options.level :
+          deck.length < 4 ? 0 : deck.length < 8 ? 1 : 2;
       }
+      const roundSettings = settings.progressive ? settingsAtLevel(settings, level) : settings;
       let question;
       for (let tries = 0; tries < 100; tries++) {
         question = kind === "chord" ? chordQuestion(roundSettings, random) : staffQuestion(roundSettings, random);
-        const varied = !deck.some(previous => sameSound(previous, question));
+        const varied = !deck.some(previous => sameSound(previous, question)) &&
+          !(options.exclude || []).some(previous => sameSound(previous, question));
         const fair = kind !== "chord" || question.choices.length > question.acceptedIds.length;
         if (varied && fair) break;
       }
-      if (deck.some(previous => sameSound(previous, question)))
+      if (deck.some(previous => sameSound(previous, question)) ||
+        (options.exclude || []).some(previous => sameSound(previous, question)))
         throw new Error('Could not make enough different questions with these settings. Broaden the filters.');
       if (kind === "chord" && question.choices.length === question.acceptedIds.length)
         throw new Error("These chord settings produce only equivalent answers. Add another chord type.");
       question.id = deck.length + 1;
+      if (settings.progressive) question.level = level;
       deck.push(question);
     }
     return deck;
@@ -136,19 +146,23 @@
     const settings = validSettings(rawSettings);
     const deck = [];
     misses.forEach((old, index) => {
+      const level = [0, 1, 2].includes(old.level) ? old.level : null;
+      const roundSettings = level === null ? settings : settingsAtLevel(settings, level);
       let question;
       for (let tries = 0; tries < 100; tries++) {
         question = old.kind === 'chord'
-          ? chordQuestion(settings, random, old.typeId)
-          : staffQuestion(settings, random, old.note.clef);
-        const newSound = !exclude.some(previous => sameSound(previous, question)) &&
+          ? chordQuestion(roundSettings, random, old.typeId)
+          : staffQuestion(roundSettings, random, old.note.clef);
+        const newSound = !sameSound(old, question) &&
+          !exclude.some(previous => sameSound(previous, question)) &&
           !deck.some(previous => sameSound(previous, question));
         if (newSound && (old.kind !== 'chord' || question.choices.length > question.acceptedIds.length)) break;
       }
-      if (exclude.some(previous => sameSound(previous, question)) ||
+      if (sameSound(old, question) || exclude.some(previous => sameSound(previous, question)) ||
         deck.some(previous => sameSound(previous, question)))
         throw new Error('Could not make enough fresh examples with these settings. Broaden the filters.');
       question.id = index + 1;
+      if (level !== null) question.level = level;
       deck.push(question);
     });
     return deck;
