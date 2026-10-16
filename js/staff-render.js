@@ -7,13 +7,15 @@
 
   // Layout constants (SVG user units).
   const VIEW_W = 360;
-  const VIEW_H = 220;            // single-staff canvas (room for ~4 ledger lines each side)
+  const VIEW_H = 168;            // compact score, still room for the quiz's ledger notes
   const VIEW_H_GRAND = 200;      // grand-staff canvas height
   const STAFF_LEFT = 20;
   const STAFF_RIGHT = 340;
   const LINE_GAP = 12;            // vertical distance between staff lines
   const STEP = LINE_GAP / 2;      // one diatonic step = half a line gap
   const NOTE_X = 230;             // x position of the notehead
+  const INK = "#344744";
+  const NOTE = "#b45935";
 
   // Single-staff bottom line, placed mid-canvas so notes can extend several
   // ledger lines both above and below.
@@ -60,7 +62,7 @@
       const y = bottomLineY - i * LINE_GAP;
       svg.appendChild(el("line", {
         x1: STAFF_LEFT, y1: y, x2: STAFF_RIGHT, y2: y,
-        stroke: "#e8ecff", "stroke-width": 1.4,
+        stroke: INK, "stroke-width": 1.4,
       }));
     }
   }
@@ -73,7 +75,7 @@
     const t = el("text", {
       x: STAFF_LEFT + 6, y: topLineY + LINE_GAP * 3.4,
       "font-size": LINE_GAP * 6.2,
-      fill: "#e8ecff",
+      fill: INK,
       "font-family": "serif",
     });
     t.textContent = "𝄞";
@@ -85,7 +87,7 @@
   function drawBassClef(svg, topLineY) {
     const Fy = topLineY + LINE_GAP; // F line
     const x = STAFF_LEFT + 13;
-    const COLOR = "#e8ecff";
+    const COLOR = INK;
     // Round head sitting on the F line.
     svg.appendChild(el("circle", { cx: x, cy: Fy - 1, r: 7.5, fill: COLOR }));
     // Comma-shaped body: rises from the head to the upper right, then sweeps
@@ -108,13 +110,13 @@
     for (let ly = bottomLineY + LINE_GAP; ly <= y + 0.5; ly += LINE_GAP) {
       svg.appendChild(el("line", {
         x1: NOTE_X - half, y1: ly, x2: NOTE_X + half, y2: ly,
-        stroke: "#e8ecff", "stroke-width": 1.4,
+        stroke: INK, "stroke-width": 1.4,
       }));
     }
     for (let ly = topLineY - LINE_GAP; ly >= y - 0.5; ly -= LINE_GAP) {
       svg.appendChild(el("line", {
         x1: NOTE_X - half, y1: ly, x2: NOTE_X + half, y2: ly,
-        stroke: "#e8ecff", "stroke-width": 1.4,
+        stroke: INK, "stroke-width": 1.4,
       }));
     }
   }
@@ -128,7 +130,7 @@
 
     svg.appendChild(el("ellipse", {
       cx: NOTE_X, cy: y, rx: 7.5, ry: 5.6,
-      fill: "#6c8cff",
+      fill: NOTE,
       transform: "rotate(-20 " + NOTE_X + " " + y + ")",
     }));
 
@@ -137,12 +139,12 @@
     if (stemUp) {
       svg.appendChild(el("line", {
         x1: NOTE_X + 7, y1: y - 1, x2: NOTE_X + 7, y2: y - 34,
-        stroke: "#6c8cff", "stroke-width": 1.8,
+        stroke: NOTE, "stroke-width": 1.8,
       }));
     } else {
       svg.appendChild(el("line", {
         x1: NOTE_X - 7, y1: y + 1, x2: NOTE_X - 7, y2: y + 34,
-        stroke: "#6c8cff", "stroke-width": 1.8,
+        stroke: NOTE, "stroke-width": 1.8,
       }));
     }
   }
@@ -150,7 +152,7 @@
   // Single staff. note = { clef, letter, octave }
   function render(note) {
     const svg = el("svg", {
-      viewBox: "0 0 " + VIEW_W + " " + VIEW_H,
+      viewBox: "0 26 " + VIEW_W + " " + VIEW_H,
       role: "img",
       "aria-label": "musical staff with one note",
     });
@@ -178,15 +180,15 @@
     // System bracket joining the two staves on the left.
     svg.appendChild(el("line", {
       x1: STAFF_LEFT, y1: trebleTop, x2: STAFF_LEFT, y2: bassBottom,
-      stroke: "#e8ecff", "stroke-width": 2,
+      stroke: INK, "stroke-width": 2,
     }));
     svg.appendChild(el("line", {
       x1: STAFF_LEFT, y1: trebleTop, x2: STAFF_LEFT + 6, y2: trebleTop,
-      stroke: "#e8ecff", "stroke-width": 2,
+      stroke: INK, "stroke-width": 2,
     }));
     svg.appendChild(el("line", {
       x1: STAFF_LEFT, y1: bassBottom, x2: STAFF_LEFT + 6, y2: bassBottom,
-      stroke: "#e8ecff", "stroke-width": 2,
+      stroke: INK, "stroke-width": 2,
     }));
 
     drawStaffLines(svg, TREBLE_BOTTOM);

@@ -64,14 +64,14 @@
       const lit = set.has(m);
       svg.appendChild(el("rect", {
         x: i * WHITE_W, y: 0, width: WHITE_W, height: WHITE_H, rx: 2,
-        fill: lit ? (m === root ? "#4cd4b0" : "#6c8cff") : "#fbfdff",
-        stroke: "#0f1220", "stroke-width": 1,
+        fill: lit ? (m === root ? "#c5a577" : "#a9c5aa") : "#f1eee6",
+        stroke: "#38443a", "stroke-width": 1,
       }));
       if (lit) {
         const t = el("text", {
           x: i * WHITE_W + WHITE_W / 2, y: WHITE_H - 7,
           "text-anchor": "middle", "font-size": 9,
-          fill: "#04261c", "font-weight": "700",
+          fill: "#26312d", "font-weight": "700",
         });
         t.textContent = label(m);
         svg.appendChild(t);
@@ -86,14 +86,14 @@
       const lit = set.has(m);
       svg.appendChild(el("rect", {
         x: x, y: 0, width: BLACK_W, height: BLACK_H, rx: 2,
-        fill: lit ? (m === root ? "#2f9e80" : "#3a5bd0") : "#1a1f36",
-        stroke: "#0f1220", "stroke-width": 1,
+        fill: lit ? (m === root ? "#9e7f55" : "#6d9275") : "#27322d",
+        stroke: "#1b251e", "stroke-width": 1,
       }));
       if (lit) {
         const t = el("text", {
           x: x + BLACK_W / 2, y: BLACK_H - 6,
           "text-anchor": "middle", "font-size": 7.5,
-          fill: "#fbfdff", "font-weight": "700",
+          fill: "#f8f5eb", "font-weight": "700",
         });
         t.textContent = label(m);
         svg.appendChild(t);
