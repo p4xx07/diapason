@@ -90,3 +90,17 @@ test('a full backlog retains new misses and drops its oldest sound', () => {
   assert.equal(duplicate.progress.pending.length, 30);
   assert.deepEqual(duplicate.progress.pending.at(-1), pending[1]);
 });
+
+test('a correct immediate transfer clears its source without adding a second miss', () => {
+  const transfer = { ...chord, notes: [59, 62, 66], followupFor: chord };
+  const attempts = [
+    { question: chord, result: { correct: false } },
+    { question: transfer, result: { correct: true } },
+  ];
+  const recovered = Progress.record({ ...Progress.empty(), pending: [chord] }, attempts, 110,
+    { resolved: [chord] });
+  assert.deepEqual(recovered.progress.pending, []);
+  const stillMissed = Progress.record(null, [attempts[0],
+    { question: transfer, result: { correct: false } }], 0);
+  assert.deepEqual(stillMissed.progress.pending, [chord]);
+});

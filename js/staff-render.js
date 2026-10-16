@@ -105,17 +105,17 @@
     svg.appendChild(el("circle", { cx: x + 23.5, cy: Fy + LINE_GAP / 2, r: 2.5, fill: COLOR }));
   }
 
-  function drawLedgerLines(svg, y, topLineY, bottomLineY) {
+  function drawLedgerLines(svg, y, topLineY, bottomLineY, noteX = NOTE_X) {
     const half = 11; // ledger line half-width around the notehead
     for (let ly = bottomLineY + LINE_GAP; ly <= y + 0.5; ly += LINE_GAP) {
       svg.appendChild(el("line", {
-        x1: NOTE_X - half, y1: ly, x2: NOTE_X + half, y2: ly,
+        x1: noteX - half, y1: ly, x2: noteX + half, y2: ly,
         stroke: INK, "stroke-width": 1.4,
       }));
     }
     for (let ly = topLineY - LINE_GAP; ly >= y - 0.5; ly -= LINE_GAP) {
       svg.appendChild(el("line", {
-        x1: NOTE_X - half, y1: ly, x2: NOTE_X + half, y2: ly,
+        x1: noteX - half, y1: ly, x2: noteX + half, y2: ly,
         stroke: INK, "stroke-width": 1.4,
       }));
     }
@@ -123,28 +123,28 @@
 
   // Draw a notehead (with ledger lines and a stem) at global y, where the note
   // belongs to the staff whose bottom line is bottomLineY.
-  function drawNote(svg, y, bottomLineY) {
+  function drawNote(svg, y, bottomLineY, noteX = NOTE_X, color = NOTE) {
     const topLineY = bottomLineY - 4 * LINE_GAP;
 
-    drawLedgerLines(svg, y, topLineY, bottomLineY);
+    drawLedgerLines(svg, y, topLineY, bottomLineY, noteX);
 
     svg.appendChild(el("ellipse", {
-      cx: NOTE_X, cy: y, rx: 7.5, ry: 5.6,
-      fill: NOTE,
-      transform: "rotate(-20 " + NOTE_X + " " + y + ")",
+      cx: noteX, cy: y, rx: 7.5, ry: 5.6,
+      fill: color,
+      transform: "rotate(-20 " + noteX + " " + y + ")",
     }));
 
     // Stem: up if the note is below the staff's middle line, down otherwise.
     const stemUp = y > topLineY + 2 * LINE_GAP;
     if (stemUp) {
       svg.appendChild(el("line", {
-        x1: NOTE_X + 7, y1: y - 1, x2: NOTE_X + 7, y2: y - 34,
-        stroke: NOTE, "stroke-width": 1.8,
+        x1: noteX + 7, y1: y - 1, x2: noteX + 7, y2: y - 34,
+        stroke: color, "stroke-width": 1.8,
       }));
     } else {
       svg.appendChild(el("line", {
-        x1: NOTE_X - 7, y1: y + 1, x2: NOTE_X - 7, y2: y + 34,
-        stroke: NOTE, "stroke-width": 1.8,
+        x1: noteX - 7, y1: y + 1, x2: noteX - 7, y2: y + 34,
+        stroke: color, "stroke-width": 1.8,
       }));
     }
   }
@@ -162,6 +162,21 @@
     const y = noteY(note.clef, note.letter, note.octave, SINGLE_BOTTOM);
     drawNote(svg, y, SINGLE_BOTTOM);
 
+    return svg;
+  }
+
+  function renderComparison(answer, choice) {
+    const svg = el("svg", {
+      viewBox: "0 26 " + VIEW_W + " " + VIEW_H,
+      role: "img",
+      "aria-label": `staff comparison: your ${choice.letter}${choice.octave} and answer ${answer.letter}${answer.octave}`,
+    });
+    drawStaffLines(svg, SINGLE_BOTTOM);
+    drawClef(svg, answer.clef, SINGLE_BOTTOM);
+    drawNote(svg, noteY(choice.clef, choice.letter, choice.octave, SINGLE_BOTTOM),
+      SINGLE_BOTTOM, 130, "#67867b");
+    drawNote(svg, noteY(answer.clef, answer.letter, answer.octave, SINGLE_BOTTOM),
+      SINGLE_BOTTOM, 270, NOTE);
     return svg;
   }
 
@@ -207,6 +222,7 @@
 
   global.DiapasonStaff = {
     render: render,
+    renderComparison: renderComparison,
     renderGrand: renderGrand,
     diatonicIndex: diatonicIndex,
   };

@@ -17,12 +17,13 @@
     aug: 'Major 3rd · augmented 5th',
   };
   const state = { tab: "solo", soloDeck: null, soloConfig: null, soloIndex: 0, soloTotal: 0, soloCorrect: 0, soloStreak: 0, soloBestStreak: 0,
-    soloAttempts: [], isReview: false, reviewSources: [],
+    soloAttempts: [], soloResolved: [], isReview: false, reviewSources: [],
     soloStartedAt: 0, soloDeadline: 0, soloAnswered: false, room: null, roomToken: null,
     shownQuestionId: null, shownPhase: null, serverOffset: 0, pollTimer: null, pollBusy: false,
-    soundTimer: null, nextTimer: null, heartbeat: null, effectTimer: null, playTimer: null,
+    soundTimer: null, nextTimer: null, heartbeat: null, effectTimer: null, playTimer: null, compareTimer: null,
+    lastQuestionPlayedAt: 0, lastQuestionDuration: 0,
     compareNotes: null, compareTimbre: null, compareArpeggio: false,
-    answerPiano: null, comparePiano: null };
+    answerPiano: null, comparePiano: null, answerStaff: null, compareStaff: null, contrastCue: '' };
 
   function readProgress() {
     try { return Progress.normalize(JSON.parse(localStorage.getItem(PROGRESS_KEY) || 'null')); }
@@ -114,6 +115,9 @@
   }
   function playQuestion(question) {
     if (!question) return;
+    state.lastQuestionPlayedAt = Date.now();
+    state.lastQuestionDuration = question.kind === 'staff' ? 1400 :
+      question.arpeggio ? (question.notes.length - 1) * 300 + 1400 : 1800;
     const stage = document.querySelector('.question-stage');
     clearTimeout(state.playTimer);
     stage.classList.remove('is-playing');
@@ -138,10 +142,83 @@
     $('challenge-reveal-name').textContent = visual.title;
     $('challenge-learning').textContent = visual.learning;
     $('challenge-reveal-piano').replaceChildren(global.DiapasonPiano.render(
-      visual.notes, visual.rootMidi, visual.names));
+      visual.notes, visual.rootMidi, visual.names, visual.differentPcs));
     const caption = $('challenge-piano-caption');
     caption.classList.toggle('hidden', !state.comparePiano);
-    caption.textContent = which === 'choice' ? 'YOUR CHOICE' : 'ANSWER';
+    caption.textContent = state.contrastCue;
+  }
+  function chordDifference(answerNotes, answerNames, choiceNotes, choiceNames) {
+    const pitchClasses = notes => new Set(notes.map(note => note % 12));
+    const answer = pitchClasses(answerNotes);
+    const choice = pitchClasses(choiceNotes);
+    const chosenOnly = [...choice].filter(pc => !answer.has(pc));
+    const answerOnly = [...answer].filter(pc => !choice.has(pc));
+    const changed = chosenOnly.concat(answerOnly);
+    const chosenText = chosenOnly.map(pc => choiceNames[pc]).join(', ');
+    const answerText = answerOnly.map(pc => answerNames[pc]).join(', ');
+    const cue = !changed.length ? 'same pitch classes · different voicing' :
+      chosenOnly.length && answerOnly.length ? `${chosenText} → ${answerText}` :
+      chosenOnly.length ? `${chosenText} leaves` : `${answerText} enters`;
+    return { changed, cue: changed.length ? `CHANGED TONES · ${cue}` : cue };
+  }
+  function nearestStaffNote(note, letter) {
+    const semitone = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[letter];
+    const target = global.DiapasonStaff.diatonicIndex(note.letter, note.octave);
+    return [note.octave - 1, note.octave, note.octave + 1]
+      .map(octave => ({ clef: note.clef, letter, octave, midi: 12 * (octave + 1) + semitone }))
+      .sort((a, b) => Math.abs(global.DiapasonStaff.diatonicIndex(a.letter, a.octave) - target) -
+        Math.abs(global.DiapasonStaff.diatonicIndex(b.letter, b.octave) - target) ||
+        Math.abs(a.midi - note.midi) - Math.abs(b.midi - note.midi))[0];
+  }
+  function showResultStaff(which) {
+    const visual = which === 'choice' ? state.compareStaff : state.answerStaff;
+    if (!visual) return;
+    $('challenge-result-label').textContent = which === 'choice' ? 'YOUR CHOICE' : 'THE ANSWER';
+    $('challenge-reveal-name').textContent = visual.title;
+    $('challenge-learning').textContent = visual.learning;
+    $('challenge-staff-choice-label').classList.toggle('active', which === 'choice');
+    $('challenge-staff-answer-label').classList.toggle('active', which !== 'choice');
+  }
+  function runComparison() {
+    if ((!state.compareNotes && !state.compareStaff) || $('challenge-result').classList.contains('hidden')) return;
+    clearTimeout(state.compareTimer);
+    const button = $('challenge-compare');
+    button.disabled = true;
+    button.textContent = 'Comparing…';
+    let delay;
+    if (state.compareStaff) {
+      Audio.playNote(state.compareStaff.note.midi);
+      showResultStaff('choice');
+      delay = 1750;
+    } else {
+      const old = Audio.getTimbre();
+      if (state.compareTimbre) Audio.setTimbre(state.compareTimbre);
+      if (state.compareArpeggio) Audio.playArpeggio(state.compareNotes);
+      else Audio.playChord(state.compareNotes);
+      Audio.setTimbre(old);
+      showResultPiano('choice');
+      const length = Math.max(state.compareNotes.length, currentQuestion().notes.length);
+      delay = state.compareArpeggio ? (length - 1) * 300 + 1650 : 2200;
+    }
+    const question = currentQuestion();
+    state.compareTimer = setTimeout(() => {
+      if ($('challenge-result').classList.contains('hidden')) return;
+      playQuestion(question);
+      showResultPiano('answer');
+      showResultStaff('answer');
+      state.compareTimer = setTimeout(() => {
+        button.disabled = false;
+        button.textContent = '▶ Compare again';
+      }, state.lastQuestionDuration + 100);
+    }, delay);
+  }
+  function autoCompareAfterMiss() {
+    if (state.room || (!state.compareNotes && !state.compareStaff)) return;
+    const button = $('challenge-compare');
+    button.disabled = true;
+    const remainingSound = state.lastQuestionPlayedAt + state.lastQuestionDuration - Date.now();
+    button.textContent = 'Listening to question…';
+    state.compareTimer = setTimeout(runComparison, Math.max(0, remainingSound) + 120);
   }
   function currentQuestion() {
     return state.room ? state.room.question : state.soloDeck?.[state.soloIndex];
@@ -162,6 +239,11 @@
     clearTimeout(state.soundTimer);
     clearTimeout(state.effectTimer);
     clearTimeout(state.playTimer);
+    clearTimeout(state.compareTimer);
+    state.lastQuestionPlayedAt = 0;
+    state.lastQuestionDuration = 0;
+    $('challenge-compare').disabled = false;
+    $('challenge-compare').textContent = '▶ Compare sounds';
     const stage = document.querySelector('.question-stage');
     stage.classList.remove('is-playing', 'answer-correct', 'answer-wrong');
     stage.classList.toggle('staff-question', question.kind === 'staff');
@@ -170,7 +252,7 @@
     const stages = ['FOUNDATIONS', 'EXPLORE', 'STRETCH'];
     const level = state.room || !state.soloConfig?.progressive || state.isReview ? '' :
       ` · ${stages[question.level ?? 0]}`;
-    $("challenge-question-label").textContent = state.isReview ? `${verb} · RETRY` : verb + level;
+    $("challenge-question-label").textContent = state.isReview || question.followupFor ? `${verb} · RETRY` : verb + level;
     $("challenge-prompt").textContent = question.kind === "chord" ? "Which chord?" : "Name this note.";
     $("challenge-stimulus").replaceChildren();
     $("challenge-stimulus").classList.toggle("hidden", question.kind !== "staff");
@@ -183,6 +265,10 @@
     state.compareNotes = null;
     state.answerPiano = null;
     state.comparePiano = null;
+    state.answerStaff = null;
+    state.compareStaff = null;
+    state.contrastCue = '';
+    $('challenge-staff-contrast').classList.add('hidden');
     $('challenge-compare').classList.add('hidden');
     $("challenge-reveal").classList.add("hidden");
     $('challenge-result').classList.add('hidden');
@@ -212,7 +298,7 @@
     const feedback = $("challenge-feedback");
     feedback.classList.add(result?.correct ? "correct" : "wrong");
     const selectedName = result?.choice ? (question.kind === 'chord' ? Core.TYPE_BY_ID[result.choice]?.label : result.choice) : null;
-    feedback.textContent = result?.correct ? `Correct · +${result.points}` :
+    feedback.textContent = result?.correct ? `${question.followupFor ? 'Recovered' : 'Correct'} · +${result.points}` :
       (selectedName ? `Not quite · you chose ${selectedName}` : "Time's up");
     const name = $("challenge-reveal-name");
     const learning = $('challenge-learning');
@@ -252,17 +338,35 @@
           names: selectedSpelling.byPc,
           title: T.chordName(question.rootMidi, selectedType),
           learning: `${selectedSpelling.names.join(' · ')}  |  ${CHORD_CUES[selectedType.id]}` };
-        compare.textContent = `▶ Hear ${selectedName}`;
+        const contrast = chordDifference(question.notes, spelled.byPc,
+          state.compareNotes, selectedSpelling.byPc);
+        state.answerPiano.differentPcs = contrast.changed;
+        state.comparePiano.differentPcs = contrast.changed;
+        state.contrastCue = contrast.cue;
+        compare.textContent = '▶ Compare sounds';
         compare.classList.remove('hidden');
         replay.textContent = '▶ Hear answer';
       }
       showResultPiano('answer');
     } else {
-      name.textContent = question.note.letter + question.note.octave;
-      learning.textContent = staffCue(question.note);
-      staff.appendChild(global.DiapasonStaff.render(question.note));
+      state.answerStaff = { title: question.note.letter + question.note.octave,
+        learning: staffCue(question.note) };
+      if (selectedName && !result.correct) {
+        const chosen = nearestStaffNote(question.note, selectedName);
+        state.compareStaff = { note: chosen, title: `${chosen.letter}${chosen.octave} (nearest)`,
+          learning: staffCue(chosen) };
+        $('challenge-staff-choice-label').textContent = `NEAREST ${chosen.letter}`;
+        $('challenge-staff-answer-label').textContent = `ANSWER ${question.note.letter}`;
+        $('challenge-staff-contrast').classList.remove('hidden');
+        staff.appendChild(global.DiapasonStaff.renderComparison(question.note, chosen));
+        compare.textContent = '▶ Compare notes';
+        compare.classList.remove('hidden');
+        replay.textContent = '▶ Hear answer';
+      } else staff.appendChild(global.DiapasonStaff.render(question.note));
+      showResultStaff('answer');
     }
     $("challenge-reveal").classList.remove("hidden");
+    if (result?.choice && !result.correct) autoCompareAfterMiss();
   }
   function staffCue(note) {
     const ref = note.clef === 'treble' ? 30 : 18;
@@ -312,6 +416,7 @@
   }
   function nextSolo() {
     clearTimeout(state.nextTimer);
+    clearTimeout(state.compareTimer);
     state.soloIndex++;
     if (state.soloIndex >= state.soloDeck.length) return finishSolo();
     openSolo();
@@ -336,6 +441,7 @@
       state.soloDeck = deck || Core.makeDeck(config);
       state.soloIndex = state.soloTotal = state.soloCorrect = state.soloStreak = state.soloBestStreak = 0;
       state.soloAttempts = [];
+      state.soloResolved = [];
       state.isReview = review;
       state.reviewSources = reviewSources;
       openSolo();
@@ -367,7 +473,9 @@
   function finishSolo() {
     show("finish");
     $("challenge-finish-title").textContent = state.isReview ? 'Review complete' : 'Set complete';
-    $("challenge-finish-summary").textContent = `${state.soloCorrect} / ${state.soloDeck.length} correct · ${state.soloTotal} points`;
+    const recovered = state.soloAttempts.filter(item => item.result.correct && item.question.followupFor).length;
+    $("challenge-finish-summary").textContent = `${state.soloCorrect} / ${state.soloDeck.length} correct` +
+      (recovered ? ` · ${recovered} recovered` : '') + ` · ${state.soloTotal} points`;
     const recap = $('challenge-recap');
     recap.replaceChildren();
     const groups = [['Chords', 'chord'], ['Notes', 'staff']];
@@ -392,17 +500,25 @@
       (!state.isReview && state.soloTotal === 0 && readProgress().bestScore === 0));
     if (state.soloConfig?.progressive) {
       const outcome = Progress.record(readProgress(), state.soloAttempts, state.soloTotal,
-        { review: state.isReview, reviewed: state.reviewSources });
+        { review: state.isReview, reviewed: state.reviewSources, resolved: state.soloResolved });
       saveProgress(outcome.progress);
       reviewCount = outcome.progress.pending.length;
       note.textContent = state.isReview
         ? (outcome.progress.pending.length ? `${outcome.cleared} cleared · ${outcome.progress.pending.length} to revisit` : 'All clear for now.')
         : (outcome.isNewBest ? 'New personal best' : `Personal best · ${outcome.progress.bestScore.toLocaleString()} points`);
     }
-    $('challenge-review').classList.toggle('hidden', !reviewCount);
-    $('challenge-review').textContent = `Practice misses (${reviewCount})`;
+    const review = $('challenge-review');
+    const playAgain = $('challenge-finish-action');
+    review.classList.toggle('hidden', !reviewCount);
+    review.classList.toggle('primary', !!reviewCount);
+    review.classList.toggle('secondary', !reviewCount);
+    review.textContent = `Practice misses (${reviewCount})`;
+    playAgain.classList.toggle('primary', !reviewCount);
+    playAgain.classList.toggle('secondary', !!reviewCount);
+    if (reviewCount) playAgain.before(review);
+    else playAgain.after(review);
     $("challenge-final-standings").replaceChildren();
-    $("challenge-finish-action").textContent = "Play again →";
+    playAgain.textContent = "Play again →";
   }
   function reviewMisses() {
     const misses = state.soloConfig?.progressive ? readProgress().pending.slice(0, 12) :
@@ -427,6 +543,26 @@
       state.soloDeck.splice(start, 4, ...segment);
     } catch { /* The original varied deck remains playable if filters are too narrow. */ }
   }
+  function queueImmediateFollowup(source) {
+    if (!state.soloConfig?.progressive || state.isReview || source.followupFor ||
+      state.soloIndex >= state.soloDeck.length - 1) return;
+    const nextIndex = state.soloIndex + 1;
+    const sameKindIndex = state.soloDeck.findIndex((question, index) =>
+      index >= nextIndex && question.kind === source.kind && !question.followupFor);
+    if (sameKindIndex < 0) return;
+    try {
+      const followup = Core.makeTransferDeck([source], state.soloConfig,
+        { exclude: state.soloDeck })[0];
+      followup.followupFor = Progress.compact(source);
+      followup.id = nextIndex + 1;
+      const displaced = state.soloDeck[nextIndex];
+      state.soloDeck[nextIndex] = followup;
+      if (sameKindIndex !== nextIndex) {
+        displaced.id = sameKindIndex + 1;
+        state.soloDeck[sameKindIndex] = displaced;
+      }
+    } catch { /* A narrow sound pool leaves the original round in place. */ }
+  }
   async function answer(choice) {
     const question = currentQuestion();
     if (!question) return;
@@ -450,14 +586,19 @@
     state.soloAttempts.push({ question, result });
     if (result.correct) { state.soloCorrect++; state.soloStreak++; state.soloBestStreak = Math.max(state.soloBestStreak, state.soloStreak); }
     else state.soloStreak = 0;
+    if (result.correct && question.followupFor) state.soloResolved.push(question.followupFor);
     adaptQuickDeck();
+    if (!result.correct) queueImmediateFollowup(question);
     $("challenge-score").textContent = state.soloTotal;
     $('challenge-streak').textContent = state.soloStreak;
     revealQuestion(question, result);
     $("challenge-next").classList.remove("hidden");
     $('challenge-advance-hint').classList.remove('hidden');
     const waitForLearner = $('challenge-pause-reveal').checked || !result.correct;
-    $('challenge-advance-hint').textContent = waitForLearner ? 'Continue when ready.' : 'Next round in 5 seconds.';
+    const lastQuestion = state.soloIndex === state.soloDeck.length - 1;
+    $('challenge-next').textContent = lastQuestion ? 'See results →' : 'Next question →';
+    $('challenge-advance-hint').textContent = waitForLearner ? 'Continue when ready.' :
+      lastQuestion ? 'Results in 5 seconds.' : 'Next round in 5 seconds.';
     $('challenge-hold').classList.toggle('hidden', waitForLearner);
     if (!waitForLearner) state.nextTimer = setTimeout(nextSolo, 5000);
     $('challenge-next').focus({ preventScroll: true });
@@ -513,10 +654,14 @@
       show('finish');
       $('challenge-finish-title').textContent = 'Match complete';
       $('challenge-finish-summary').textContent = `${view.roundCount} rounds · final standings`;
+      $('challenge-finish-note').classList.add('hidden');
       $('challenge-recap').classList.add('hidden');
       $('challenge-review').classList.add('hidden');
       rows($('challenge-final-standings'), view.players, true);
-      $('challenge-finish-action').textContent = view.self.isHost ? 'Play again →' : 'Leave room';
+      const action = $('challenge-finish-action');
+      action.classList.add('primary');
+      action.classList.remove('secondary');
+      action.textContent = view.self.isHost ? 'Play again →' : 'Leave room';
     } else {
       const question = view.question;
       if (state.shownQuestionId !== question.id) {
@@ -591,8 +736,14 @@
     if (event.metaKey || event.ctrlKey || event.altKey || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
     if (event.key === ' ') {
       event.preventDefault();
+      clearTimeout(state.compareTimer);
+      $('challenge-compare').disabled = false;
+      if (state.compareNotes || state.compareStaff) $('challenge-compare').textContent = '▶ Compare again';
       playQuestion(currentQuestion());
-      if (!$('challenge-result').classList.contains('hidden')) showResultPiano('answer');
+      if (!$('challenge-result').classList.contains('hidden')) {
+        showResultPiano('answer');
+        showResultStaff('answer');
+      }
     }
     else if (/^[1-4]$/.test(event.key)) {
       const button = $('challenge-options').children[Number(event.key) - 1];
@@ -624,24 +775,21 @@
     });
     $('challenge-replay').addEventListener('click', () => playQuestion(currentQuestion()));
     $('challenge-result-replay').addEventListener('click', () => {
+      clearTimeout(state.compareTimer);
+      $('challenge-compare').disabled = false;
+      if (state.compareNotes || state.compareStaff) $('challenge-compare').textContent = '▶ Compare again';
       playQuestion(currentQuestion());
       showResultPiano('answer');
+      showResultStaff('answer');
     });
-    $('challenge-compare').addEventListener('click', () => {
-      if (!state.compareNotes) return;
-      const old = Audio.getTimbre();
-      if (state.compareTimbre) Audio.setTimbre(state.compareTimbre);
-      if (state.compareArpeggio) Audio.playArpeggio(state.compareNotes);
-      else Audio.playChord(state.compareNotes);
-      Audio.setTimbre(old);
-      showResultPiano('choice');
-    });
+    $('challenge-compare').addEventListener('click', runComparison);
     $('challenge-hold').addEventListener('click', () => {
       clearTimeout(state.nextTimer);
       $('challenge-hold').classList.add('hidden');
       $('challenge-advance-hint').textContent = 'Continue when ready.';
     });
     $('challenge-exit').addEventListener('click', () => {
+      clearTimeout(state.compareTimer);
       if (state.room) leave();
       else { clearTimeout(state.nextTimer); state.soloDeck = state.soloConfig = null; show('setup'); }
     });

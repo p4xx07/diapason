@@ -73,6 +73,8 @@ html[data-theme="dark"] .question-stage .staff-render svg [stroke="#b45935"],
 html[data-theme="dark"] .result-card .staff-render svg [stroke="#b45935"] { stroke: #e6a27e; }
 html[data-theme="dark"] .question-stage .staff-render svg [fill="#b45935"],
 html[data-theme="dark"] .result-card .staff-render svg [fill="#b45935"] { fill: #e6a27e; }
+html[data-theme="dark"] .result-card .staff-render svg [fill="#67867b"] { fill: #9db7a5; }
+html[data-theme="dark"] .result-card .staff-render svg [stroke="#67867b"] { stroke: #9db7a5; }
 html[data-theme="dark"] .game-answer { background: #28302a; color: var(--text); border-color: #526054; }
 html[data-theme="dark"] .game-answer:hover:not(:disabled) { background: #334035; border-color: #a6c1a9; }
 html[data-theme="dark"] .game-answer:active:not(:disabled) { background: #3b493d; }

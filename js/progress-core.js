@@ -45,9 +45,11 @@
     return newestFirst.reverse();
   }
 
-  function record(raw, attempts, score, { review = false, reviewed = [] } = {}) {
+  function record(raw, attempts, score, { review = false, reviewed = [], resolved = [] } = {}) {
     const previous = normalize(raw);
-    const misses = attempts.filter(item => !item.result.correct).map(item => compact(item.question)).filter(Boolean);
+    const recovered = new Set(resolved.map(compact).filter(Boolean).map(soundKey));
+    const misses = attempts.filter(item => !item.result.correct && !item.question.followupFor)
+      .map(item => compact(item.question)).filter(question => question && !recovered.has(soundKey(question)));
     let pending;
     let cleared = 0;
     if (review) {
@@ -57,7 +59,7 @@
       pending = previous.pending.filter(question => !solved.has(soundKey(question)));
       cleared = previous.pending.length - pending.length;
     } else {
-      pending = recentUnique(previous.pending.concat(misses));
+      pending = recentUnique(previous.pending.filter(question => !recovered.has(soundKey(question))).concat(misses));
     }
     const correct = attempts.filter(item => item.result.correct).length;
     const isNewBest = !review && score > previous.bestScore;

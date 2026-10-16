@@ -153,10 +153,11 @@
         question = old.kind === 'chord'
           ? chordQuestion(roundSettings, random, old.typeId)
           : staffQuestion(roundSettings, random, old.note.clef);
+        const related = old.kind === 'chord' || Math.abs(question.note.midi - old.note.midi) <= 4 || tries >= 50;
         const newSound = !sameSound(old, question) &&
           !exclude.some(previous => sameSound(previous, question)) &&
           !deck.some(previous => sameSound(previous, question));
-        if (newSound && (old.kind !== 'chord' || question.choices.length > question.acceptedIds.length)) break;
+        if (related && newSound && (old.kind !== 'chord' || question.choices.length > question.acceptedIds.length)) break;
       }
       if (sameSound(old, question) || exclude.some(previous => sameSound(previous, question)) ||
         deck.some(previous => sameSound(previous, question)))

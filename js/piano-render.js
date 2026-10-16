@@ -31,8 +31,9 @@
   // nameByPc (optional) maps a pitch class to the correctly-spelled note name
   // for the current chord (e.g. {10: "Bb"}); lit keys use it instead of the
   // default sharp names, so accidentals are shown per music theory.
-  function render(highlight, rootMidi, nameByPc) {
+  function render(highlight, rootMidi, nameByPc, differentPcs = []) {
     const set = new Set(highlight);
+    const different = new Set(differentPcs);
     const root = (typeof rootMidi === "number") ? rootMidi : highlight[0];
 
     function label(m) {
@@ -56,16 +57,18 @@
     const svg = el("svg", {
       viewBox: "0 0 " + totalW + " " + WHITE_H,
       role: "img",
-      "aria-label": "piano keyboard with chord notes highlighted",
+      "aria-label": different.size ? "piano keyboard with differing chord tones outlined" :
+        "piano keyboard with chord notes highlighted",
     });
 
     // White keys first.
     whites.forEach(function (m, i) {
       const lit = set.has(m);
+      const changed = lit && different.has(pc(m));
       svg.appendChild(el("rect", {
         x: i * WHITE_W, y: 0, width: WHITE_W, height: WHITE_H, rx: 2,
         fill: lit ? (m === root ? "#c5a577" : "#a9c5aa") : "#f1eee6",
-        stroke: "#38443a", "stroke-width": 1,
+        stroke: changed ? "#aa5a35" : "#38443a", "stroke-width": changed ? 3 : 1,
       }));
       if (lit) {
         const t = el("text", {
@@ -84,10 +87,11 @@
       if (isWhite(m)) { whiteCount++; continue; }
       const x = whiteCount * WHITE_W - BLACK_W / 2;
       const lit = set.has(m);
+      const changed = lit && different.has(pc(m));
       svg.appendChild(el("rect", {
         x: x, y: 0, width: BLACK_W, height: BLACK_H, rx: 2,
         fill: lit ? (m === root ? "#9e7f55" : "#6d9275") : "#27322d",
-        stroke: "#1b251e", "stroke-width": 1,
+        stroke: changed ? "#e6a27e" : "#1b251e", "stroke-width": changed ? 2.5 : 1,
       }));
       if (lit) {
         const t = el("text", {

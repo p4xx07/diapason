@@ -175,9 +175,12 @@ button.step:hover { background: #dcdfd5; }
 .piano-caption { display: block; color: var(--muted); font-size: .66rem; font-weight: 700; letter-spacing: .12em; margin-top: .65rem; }
 .result-card .staff-render { width: min(100%, 290px); margin: .25rem auto; padding: 0; border: 0; background: transparent; }
 .result-card .staff-render svg { width: 100%; height: auto; max-height: 125px; }
+.staff-contrast { display: grid; grid-template-columns: 1fr 1fr; width: min(100%, 290px); margin: .6rem auto 0; padding-left: 1.3rem; color: var(--muted); font-size: .7rem; font-weight: 750; letter-spacing: .07em; }
+.staff-contrast span.active { color: var(--text); }
 .learning-cue { color: var(--muted); font-size: .96rem; line-height: 1.5; white-space: pre-line; margin: .45rem auto; max-width: 620px; }
 .result-actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: .55rem; margin-top: .65rem; }
 .result-actions button { font-size: .88rem; min-height: 44px; padding: .6rem 1rem; }
+.result-actions #challenge-compare:disabled { opacity: .65; cursor: default; }
 .result-actions #challenge-next { display: inline-flex; margin: 0; }
 .result-actions .text-action { min-height: 36px; }
 .challenge-feedback { font-size: .98rem; min-height: 1.4rem; }

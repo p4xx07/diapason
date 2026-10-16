@@ -119,6 +119,18 @@ test('a foundations retry keeps its two-choice difficulty', () => {
   });
 });
 
+test('a staff retry chooses a nearby new note when one is available', () => {
+  let seed = 1249;
+  const random = () => ((seed = (1664525 * seed + 1013904223) >>> 0) / 2 ** 32);
+  const source = { kind: 'staff', note: { clef: 'treble', letter: 'G', octave: 4, midi: 67 }, level: 0 };
+  const retry = Core.makeTransferDeck([source], { mode: 'mixed', rounds: 12, progressive: true },
+    { random, exclude: [] })[0];
+  assert.equal(retry.note.clef, 'treble');
+  assert.notEqual(retry.note.midi, 67);
+  assert.ok(Math.abs(retry.note.midi - 67) <= 4);
+  assert.equal(retry.choices.length, 2);
+});
+
 test('the public chord question hides the answer until reveal', () => {
   const question = Core.makeDeck({ mode: 'chords', rounds: 3 })[0];
   const hidden = Core.publicQuestion(question);
